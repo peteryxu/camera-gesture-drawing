@@ -8,6 +8,8 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # This gives the workflow write permission to the repository
     
     steps:
       - name: Checkout repository
@@ -17,27 +19,48 @@ jobs:
         id: get_version
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
       
-      - name: Checkout gh-pages branch
-        uses: actions/checkout@v3
-        with:
-          ref: gh-pages
-          path: gh-pages-branch
-          clean: false
+      - name: Checkout gh-pages branch or create if it doesn't exist
+        run: |
+          # Try to checkout the gh-pages branch
+          git fetch origin gh-pages || true
+          
+          if git rev-parse --verify origin/gh-pages >/dev/null 2>&1; then
+            # Branch exists, checkout
+            git checkout gh-pages
+          else
+            # Branch doesn't exist, create orphan branch
+            git checkout --orphan gh-pages
+            git rm -rf .
+            echo "# Documentation Versions" > index.html
+            git add index.html
+            git config --local user.email "action@github.com"
+            git config --local user.name "GitHub Action"
+            git commit -m "Initial gh-pages commit"
+          fi
       
       - name: Create version directory
         run: |
-          mkdir -p gh-pages-branch/${{ env.VERSION }}
+          mkdir -p ${{ env.VERSION }}
       
       - name: Copy files to version directory
         run: |
-          # Copy all HTML/CSS/JS files to the version directory
-          # Excluding hidden files, git files, and workflow files
-          cp -R *.html *.css *.js assets/ images/ gh-pages-branch/${{ env.VERSION }}/ 2>/dev/null || true
+          # Checkout the tagged version to a temporary directory
+          mkdir -p temp_checkout
+          git clone https://github.com/${{ github.repository }}.git temp_checkout
+          cd temp_checkout
+          git checkout ${{ env.VERSION }}
+          
+          # Copy files to the version directory in the gh-pages branch
+          cd ..
+          cp -R temp_checkout/*.html temp_checkout/*.css temp_checkout/*.js ${{ env.VERSION }}/ 2>/dev/null || true
+          cp -R temp_checkout/assets ${{ env.VERSION }}/ 2>/dev/null || true
+          cp -R temp_checkout/images ${{ env.VERSION }}/ 2>/dev/null || true
+          
+          # Clean up
+          rm -rf temp_checkout
       
       - name: Generate versions index
         run: |
-          cd gh-pages-branch
-          
           # Create/update versions.json
           echo '[' > versions.json
           
@@ -111,7 +134,6 @@ jobs:
           CURRENT_VERSION=$(echo ${{ env.VERSION }} | sed 's/^v//')
           
           # Find all version directories and extract version numbers
-          cd gh-pages-branch
           ALL_VERSIONS=$(find . -maxdepth 1 -type d -name "v*" | sed 's/^\.\///' | sed 's/^v//' | sort -V)
           
           # Get highest version
@@ -127,20 +149,16 @@ jobs:
       - name: Copy to root if latest version
         if: env.IS_LATEST == 'true'
         run: |
-          # Remove all files from root except version directories and versioning files
-          find gh-pages-branch -maxdepth 1 -type f -not -name "versions.json" -not -name "index.html" -delete
-          
-          # Copy latest version to root
-          cp -R gh-pages-branch/${{ env.VERSION }}/* gh-pages-branch/
+          # Copy latest version files to root (excluding index.html, which we already created)
+          cp -R ${{ env.VERSION }}/* . 2>/dev/null || true
           
           # Create a latest.txt file to track current latest version
-          echo ${{ env.VERSION }} > gh-pages-branch/latest.txt
+          echo ${{ env.VERSION }} > latest.txt
       
       - name: Commit and push changes
         run: |
-          cd gh-pages-branch
           git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
           git add .
           git commit -m "Deploy documentation for version ${{ env.VERSION }}"
-          git push origin gh-pages
+          git push https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git gh-pages
