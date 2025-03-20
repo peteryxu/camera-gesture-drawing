@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hand Gesture Drawing</title>
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- Load TensorFlow.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.11.0/dist/tf.min.js"></script>
+    
+    <!-- Load Handpose -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/handpose@0.0.7/dist/handpose.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="camera-container">
+            <video id="webcam" autoplay playsinline></video>
+            <canvas id="output-canvas"></canvas>
+            <canvas id="drawing-canvas"></canvas>
+        </div>
+        <div class="controls">
+            <div class="control-panel">
+                <h3>Tools</h3>
+                <div class="tool-buttons">
+                    <button id="draw-tool" class="active">Draw</button>
+                    <button id="erase-tool">Erase</button>
+                    <button id="clear-tool">Clear All</button>
+                </div>
+            </div>
+            <div class="control-panel">
+                <h3>Brush Size</h3>
+                <div class="size-buttons">
+                    <button id="small-size">Small</button>
+                    <button id="medium-size" class="active">Medium</button>
+                    <button id="large-size">Large</button>
+                </div>
+            </div>
+            <div class="control-panel">
+                <h3>Color</h3>
+                <div class="color-picker">
+                    <button class="color-option active" style="background-color: #ff0000;" data-color="#ff0000"></button>
+                    <button class="color-option" style="background-color: #00ff00;" data-color="#00ff00"></button>
+                    <button class="color-option" style="background-color: #0000ff;" data-color="#0000ff"></button>
+                    <button class="color-option" style="background-color: #ffff00;" data-color="#ffff00"></button>
+                    <button class="color-option" style="background-color: #ff00ff;" data-color="#ff00ff"></button>
+                    <button class="color-option" style="background-color: #00ffff;" data-color="#00ffff"></button>
+                    <button class="color-option" style="background-color: #ffffff;" data-color="#ffffff"></button>
+                    <button class="color-option" style="background-color: #000000;" data-color="#000000"></button>
+                </div>
+            </div>
+            <div class="status-panel">
+                <div id="instructions">
+                    <p>👆 Point with index finger to draw</p>
+                    <p>👋 Open palm to erase</p>
+                    <p>✌️ Peace sign to select tools/colors</p>
+                    <p>Move hand closer/further to change size</p>
+                </div>
+                <div id="status-message">Loading model... This may take a moment.</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- App Script -->
+    <script src="app.js"></script>
+</body>
+</html>

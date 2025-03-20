@@ -1,0 +1,133 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background-color: #121212;
+    color: #f0f0f0;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.container {
+    display: flex;
+    height: 100vh;
+}
+
+.camera-container {
+    position: relative;
+    flex: 1;
+    overflow: hidden;
+}
+
+#webcam, #output-canvas, #drawing-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+#webcam {
+    transform: scaleX(-1); /* Mirror the webcam */
+}
+
+#output-canvas {
+    z-index: 1;
+}
+
+#drawing-canvas {
+    z-index: 2;
+}
+
+.controls {
+    width: 250px;
+    padding: 20px;
+    background-color: #2a2a2a;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    overflow-y: auto;
+}
+
+.control-panel {
+    background-color: #3a3a3a;
+    border-radius: 8px;
+    padding: 15px;
+}
+
+.control-panel h3 {
+    margin-bottom: 10px;
+    color: #f0f0f0;
+}
+
+.tool-buttons, .size-buttons {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+
+button {
+    padding: 10px;
+    border: none;
+    border-radius: 4px;
+    background-color: #4a4a4a;
+    color: #f0f0f0;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+button:hover {
+    background-color: #5a5a5a;
+}
+
+button.active {
+    background-color: #007bff;
+}
+
+.color-picker {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+}
+
+.color-option {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid #4a4a4a;
+}
+
+.color-option.active {
+    border-color: #f0f0f0;
+    transform: scale(1.1);
+}
+
+.status-panel {
+    background-color: #3a3a3a;
+    border-radius: 8px;
+    padding: 15px;
+    margin-top: auto;
+}
+
+#instructions {
+    margin-bottom: 10px;
+    font-size: 14px;
+}
+
+#instructions p {
+    margin-bottom: 5px;
+}
+
+#status-message {
+    padding: 10px;
+    text-align: center;
+    background-color: #4a4a4a;
+    border-radius: 4px;
+    font-weight: bold;
+}
