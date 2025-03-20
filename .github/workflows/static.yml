@@ -1,0 +1,146 @@
+name: Deploy Versioned Documentation
+
+on:
+  push:
+    tags:
+      - 'v*'  # Trigger on any tag starting with 'v'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      
+      - name: Get tag version
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+      
+      - name: Checkout gh-pages branch
+        uses: actions/checkout@v3
+        with:
+          ref: gh-pages
+          path: gh-pages-branch
+          clean: false
+      
+      - name: Create version directory
+        run: |
+          mkdir -p gh-pages-branch/${{ env.VERSION }}
+      
+      - name: Copy files to version directory
+        run: |
+          # Copy all HTML/CSS/JS files to the version directory
+          # Excluding hidden files, git files, and workflow files
+          cp -R *.html *.css *.js assets/ images/ gh-pages-branch/${{ env.VERSION }}/ 2>/dev/null || true
+      
+      - name: Generate versions index
+        run: |
+          cd gh-pages-branch
+          
+          # Create/update versions.json
+          echo '[' > versions.json
+          
+          # Get all version directories
+          VERSIONS=$(find . -maxdepth 1 -type d -name "v*" | sort -Vr)
+          
+          # Add each version to versions.json
+          FIRST=true
+          for VERSION in $VERSIONS; do
+            VERSION=$(basename $VERSION)
+            if [ "$FIRST" = true ]; then
+              echo "  {\"version\": \"$VERSION\", \"latest\": true}" >> versions.json
+              FIRST=false
+            else
+              echo "  ,{\"version\": \"$VERSION\", \"latest\": false}" >> versions.json
+            fi
+          done
+          
+          echo ']' >> versions.json
+          
+          # Create/update versions index page
+          cat > index.html << EOF
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>Documentation Versions</title>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1">
+              <style>
+                body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+                h1 { color: #333; }
+                ul { list-style-type: none; padding: 0; }
+                li { margin: 10px 0; }
+                a { color: #0366d6; text-decoration: none; }
+                a:hover { text-decoration: underline; }
+                .latest { font-weight: bold; }
+                .latest::after { content: " (Latest)"; color: #28a745; }
+              </style>
+            </head>
+            <body>
+              <h1>Documentation Versions</h1>
+              <ul id="versions-list"></ul>
+              
+              <script>
+                fetch('./versions.json')
+                  .then(response => response.json())
+                  .then(versions => {
+                    const list = document.getElementById('versions-list');
+                    versions.forEach(version => {
+                      const item = document.createElement('li');
+                      const link = document.createElement('a');
+                      link.href = './' + version.version + '/';
+                      link.textContent = version.version;
+                      if (version.latest) {
+                        link.classList.add('latest');
+                      }
+                      item.appendChild(link);
+                      list.appendChild(item);
+                    });
+                  });
+              </script>
+            </body>
+          </html>
+          EOF
+      
+      # If this is the latest version, also copy to root
+      - name: Check if latest version
+        id: check_latest
+        run: |
+          # Extract just the version numbers without the 'v' prefix for comparison
+          CURRENT_VERSION=$(echo ${{ env.VERSION }} | sed 's/^v//')
+          
+          # Find all version directories and extract version numbers
+          cd gh-pages-branch
+          ALL_VERSIONS=$(find . -maxdepth 1 -type d -name "v*" | sed 's/^\.\///' | sed 's/^v//' | sort -V)
+          
+          # Get highest version
+          HIGHEST_VERSION=$(echo "$ALL_VERSIONS" | tail -n1)
+          
+          # Check if current version is the highest
+          if [ "$CURRENT_VERSION" = "$HIGHEST_VERSION" ]; then
+            echo "IS_LATEST=true" >> $GITHUB_ENV
+          else
+            echo "IS_LATEST=false" >> $GITHUB_ENV
+          fi
+      
+      - name: Copy to root if latest version
+        if: env.IS_LATEST == 'true'
+        run: |
+          # Remove all files from root except version directories and versioning files
+          find gh-pages-branch -maxdepth 1 -type f -not -name "versions.json" -not -name "index.html" -delete
+          
+          # Copy latest version to root
+          cp -R gh-pages-branch/${{ env.VERSION }}/* gh-pages-branch/
+          
+          # Create a latest.txt file to track current latest version
+          echo ${{ env.VERSION }} > gh-pages-branch/latest.txt
+      
+      - name: Commit and push changes
+        run: |
+          cd gh-pages-branch
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+          git add .
+          git commit -m "Deploy documentation for version ${{ env.VERSION }}"
+          git push origin gh-pages
